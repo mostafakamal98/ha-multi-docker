@@ -1,0 +1,79 @@
+version: '3'
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - POSTGRES_PASSWORD=postgres_password
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+  redis:
+    image: 'redis:latest'
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+  nginx:
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    volumes:
+      - ./nginx/keepalived-master.conf:/etc/keepalived/keepalived.conf
+    network_mode: "host" 
+    cap_add: 
+      - NET_ADMIN
+#    ports:
+#      - '3050:80'
+    depends_on:
+      - client
+    
+  api:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - /app/node_modules
+      - ./server:/app
+    environment:
+      - REDIS_HOST=192.168.40.161
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=192.168.40.161
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
+  client:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  worker:
+    environment:
+      - REDIS_HOST=192.168.40.161
+      - REDIS_PORT=6379
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
